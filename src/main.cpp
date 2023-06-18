@@ -5,6 +5,11 @@
 
 #include <openssl/md5.h>
 
+#define GENERIC(...) printf(__VA_ARGS__); fflush(stdout);
+#define ERROR(...) GENERIC("ERROR: " __VA_ARGS__)
+#define WARN(...) GENERIC("WARNING: " __VA_ARGS__)
+#define INFO(...) GENERIC("INFO: " __VA_ARGS__)
+
 typedef enum
 {
   catgirl_CHOCOLA = 0,
@@ -33,15 +38,15 @@ catgirl_payload_t catgirls[catgirl_MAX];
 
 void process_catgirl(catgirl_payload_t *cg, httplib::Result &res)
 {
-  printf("INFO: processing %s\n", cg->name.c_str());
+  INFO("processing %s\n", cg->name.c_str());
   if(!res)
   {
-    printf("ERROR: failed to get %s http error\n", cg->name.c_str());
+    ERROR("failed to get %s http error\n", cg->name.c_str());
     return;
   }
   if(res->status != 200)
   {
-    printf("ERROR: failed to get %s status %d\n", cg->name.c_str(), res->status);
+    ERROR("failed to get %s status %d\n", cg->name.c_str(), res->status);
     return;
   }
   cg->data = res->body;
@@ -51,7 +56,7 @@ void process_catgirl(catgirl_payload_t *cg, httplib::Result &res)
   }
   catch(std::exception &_e)
   {
-    printf("WARN: failed to automatically detect content type for %s, using default\n", cg->name.c_str());
+    WARN("failed to automatically detect content type for %s, using default\n", cg->name.c_str());
     cg->content_type = "image/gif";
   }
 }
@@ -92,12 +97,12 @@ int main(int argc, char **argv)
   if(test_mode)
   {
     port = 8080;
-    printf("deploying for testing on port %d\n", port);
+    INFO("deploying for testing on port %d\n", port);
   }
   else
   {
     port = 443;
-    printf("deploying for production on port %d\n", port);
+    INFO("deploying for production on port %d\n", port);
   }
 #ifdef HTTPS_SERVER
   // maybe replace these values with your certificate locations
@@ -105,9 +110,9 @@ int main(int argc, char **argv)
 #else // HTTPS_SERVER
   httplib::Server svr;
 #endif // HTTPS_SERVER
-  printf("INFO: loading catgirls\n");
+  INFO("loading catgirls\n");
   load_catgirls();
-  printf("INFO: creating endpoint\n");
+  INFO("creating endpoint\n");
   svr.Get("/welcome.gif", [](const httplib::Request &req, httplib::Response &res) {
     // select a catgirl to serve
     catgirl_t current_selection;
@@ -121,7 +126,7 @@ int main(int argc, char **argv)
         hash_fold = hash_fold ^ hash_res[i];
       }
       current_selection = (catgirl_t)(hash_fold % catgirl_MAX);
-      printf("INFO: deterministic selection, %d(%s)\n", current_selection, catgirls[current_selection].name.c_str());
+      INFO("deterministic selection, %d(%s)\n", current_selection, catgirls[current_selection].name.c_str());
     }
     else
     {
@@ -130,7 +135,7 @@ int main(int argc, char **argv)
       current_selection = selection;
       selection = next_selection(current_selection);
       selection_lock.unlock();
-      printf("INFO: cyclic selection, %d(%s)\n", current_selection, catgirls[current_selection].name.c_str());
+      INFO("cyclic selection, %d(%s)\n", current_selection, catgirls[current_selection].name.c_str());
     }
     // serve said catgirl from our data
     res.set_content(catgirls[current_selection].data, catgirls[current_selection].content_type);
@@ -139,12 +144,12 @@ int main(int argc, char **argv)
     res.status = 200;
   });
 
-  printf("INFO: attaching logger\n");
+  INFO("attaching logger\n");
   svr.set_logger([](const auto& req, const auto& res) {
-    printf("INFO: Got request %s %s status %d\n", req.method.c_str(), req.path.c_str(), res.status);
+    INFO("Got request %s %s status %d\n", req.method.c_str(), req.path.c_str(), res.status);
   });
 
-  printf("INFO: listening ipv4 port %u\n", port);
+  INFO("listening ipv4 port %u\n", port);
   svr.listen("0.0.0.0", port);
   return 0;
 }

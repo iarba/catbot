@@ -12,5 +12,3 @@ FILE(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 add_executable(catbot ${SOURCES})
 
 target_link_libraries(catbot Threads::Threads OpenSSL::Crypto OpenSSL::SSL)
-
-add_custom_target(attach ALL COMMAND ../install.sh)
