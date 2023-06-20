@@ -3,6 +3,8 @@
 
 #include <cstdio>
 
+#define VERSION 0x01000001
+
 // maybe replace these values with your files
 
 #define HTTPS_CERT "/opt/crt/iarba.xyz/cert.pem"

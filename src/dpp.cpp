@@ -67,6 +67,7 @@ int dpp_main(int argc, char **argv)
     }
     persistent_t::get()->cache.add_message(event.msg);
     std::string msg = event.msg.content;
+    TRACE("%s\n", msg.c_str());
     for (auto & c: msg) c = tolower(c);
     INFO("processing message %lu %lu\n", (uint64_t)event.msg.channel_id, (uint64_t)event.msg.id);
     if(msg.find("yikes") != std::string::npos)
@@ -88,7 +89,7 @@ int dpp_main(int argc, char **argv)
             ERROR("someone tried to get me to time myself out, rude\n");
             return;
           }
-          persistent_t::get()->bot->guild_member_timeout(target_msg.guild_id, reported_user, std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() + persistent_t::get()->ydb.timeout_duration_get()));
+          persistent_t::get()->bot->guild_member_timeout(target_msg.guild_id, reported_user, std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() + persistent_t::get()->ydb.timeout_get()));
         }
       });
     }
@@ -133,7 +134,7 @@ int dpp_main(int argc, char **argv)
       if(token.size() != 0)
       {
         TRACE("replying to command\n");
-        event.reply(persistent_t::get()->master.process(argc, argv, &event.msg));
+        event.reply(token);
       }
       delete[] argv;
       return;

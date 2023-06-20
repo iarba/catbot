@@ -15,6 +15,11 @@ bool limiter_t::save(std::ostream &ss)
   {
     status = status && (ss << ' ' << (uint64_t)(*it));
   }
+  status = status && (ss << std::endl << this->authorised_roles.size() << std::endl);
+  for(auto it = this->authorised_roles.begin(); it != this->authorised_roles.end(); it++)
+  {
+    status = status && (ss << ' ' << (uint64_t)(*it));
+  }
   status = status && (ss << std::endl);
   this->mtx.unlock();
   return status;
@@ -32,6 +37,13 @@ bool limiter_t::load(std::istream &ss)
     status = status && (ss >> snowflake_uint64);
     dpp::snowflake snowflake(snowflake_uint64);
     this->authorised_masters.insert(snowflake);
+  }
+  status = status && (ss >> this->prefix >> count);
+  while(count--)
+  {
+    status = status && (ss >> snowflake_uint64);
+    dpp::snowflake snowflake(snowflake_uint64);
+    this->authorised_roles.insert(snowflake);
   }
   this->mtx.unlock();
   return status;
@@ -53,7 +65,53 @@ bool limiter_t::prefix_set(std::string prefix)
   return true;
 }
 
-bool limiter_t::allow_master(dpp::user user)
+void limiter_t::fill_masters(std::stringstream &ss)
+{
+  this->mtx.lock();
+  for(auto it: this->authorised_masters)
+  {
+    ss << "catgirl: <@" << std::to_string(it) << ">" <<std::endl;
+  }
+  for(auto it: this->authorised_roles)
+  {
+    ss << "catgirl_role: <@&" << std::to_string(it) << ">" <<std::endl;
+  }
+  this->mtx.unlock();
+}
+
+bool limiter_t::allow(dpp::snowflake id)
+{
+  this->mtx.lock();
+  this->authorised_masters.insert(id);
+  this->mtx.unlock();
+  return true;
+}
+
+bool limiter_t::deny(dpp::snowflake id)
+{
+  this->mtx.lock();
+  this->authorised_masters.erase(id);
+  this->mtx.unlock();
+  return true;
+}
+
+bool limiter_t::allow_role(dpp::snowflake id)
+{
+  this->mtx.lock();
+  this->authorised_roles.insert(id);
+  this->mtx.unlock();
+  return true;
+}
+
+bool limiter_t::deny_role(dpp::snowflake id)
+{
+  this->mtx.lock();
+  this->authorised_roles.erase(id);
+  this->mtx.unlock();
+  return true;
+}
+
+bool limiter_t::allow_master(const dpp::guild_member &guser, const dpp::user &user)
 {
   bool status = false;
   this->mtx.lock();
@@ -69,8 +127,21 @@ bool limiter_t::allow_master(dpp::user user)
   }
   else
   {
-    WARN("reject master call from %s(%lu]\n", user.format_username().c_str(), (uint64_t)user.id);
+    for(auto it : guser.roles)
+    {
+      dpp::snowflake sf = it;
+      if(this->authorised_roles.find(sf) != this->authorised_roles.end())
+      {
+        WARN("accept master call from %s(%lu] scenarion 3 role %lu\n", user.format_username().c_str(), (uint64_t)user.id, (uint64_t) sf);
+        status = true;
+        break;
+      }
+    }
   }
   this->mtx.unlock();
+  if(!status)
+  {
+    WARN("reject master call from %s(%lu]\n", user.format_username().c_str(), (uint64_t)user.id);
+  }
   return status;
 }

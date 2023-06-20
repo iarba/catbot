@@ -4,9 +4,9 @@ bool yikes_database_t::save(std::ostream &ss)
 {
   bool status = true;
   this->mtx.lock();
-  status = status && (ss << ' ' << this->yikes_required << ' ');
-  status = status && (ss << ' ' << this->yikes_persistence.count() << ' ');
-  status = status && (ss << ' ' << this->yikes_timeout_duration.count() << ' ');
+  status = status && (ss << ' ' << this->threshold << ' ');
+  status = status && (ss << ' ' << this->persistence.count() << ' ');
+  status = status && (ss << ' ' << this->timeout.count() << ' ');
   status = status && (ss << ' ' << this->yikes_collection.size() << std::endl);
   for(auto it = this->yikes_collection.begin(); it != this->yikes_collection.end(); it++)
   {
@@ -22,9 +22,9 @@ bool yikes_database_t::load(std::istream &ss)
   long val;
   bool status = true;
   this->mtx.lock();
-  status = status && (ss >> this->yikes_required);
-  status = status && (ss >> val); this->yikes_persistence = std::chrono::seconds(val);
-  status = status && (ss >> val); this->yikes_timeout_duration = std::chrono::seconds(val);
+  status = status && (ss >> this->threshold);
+  status = status && (ss >> val); this->persistence = std::chrono::seconds(val);
+  status = status && (ss >> val); this->timeout = std::chrono::seconds(val);
   status = status && (ss >> val);
   this->yikes_collection.clear();
   this->yikes_count.clear();
@@ -50,9 +50,52 @@ bool yikes_database_t::load(std::istream &ss)
   return status;
 }
 
-std::chrono::seconds yikes_database_t::timeout_duration_get()
+int yikes_database_t::threshold_get()
 {
-  return this->yikes_timeout_duration;
+  this->mtx.lock();
+  auto rval = this->threshold;
+  this->mtx.unlock();
+  return rval;
+}
+
+bool yikes_database_t::threshold_set(int val)
+{
+  this->mtx.lock();
+  this->threshold = val;
+  this->mtx.unlock();
+  return true;
+}
+
+std::chrono::seconds yikes_database_t::persistence_get()
+{
+  this->mtx.lock();
+  auto rval = this->persistence;
+  this->mtx.unlock();
+  return rval;
+}
+
+bool yikes_database_t::persistence_set(std::chrono::seconds val)
+{
+  this->mtx.lock();
+  this->persistence = val;
+  this->mtx.unlock();
+  return true;
+}
+
+std::chrono::seconds yikes_database_t::timeout_get()
+{
+  this->mtx.lock();
+  auto rval = this->timeout;
+  this->mtx.unlock();
+  return rval;
+}
+
+bool yikes_database_t::timeout_set(std::chrono::seconds val)
+{
+  this->mtx.lock();
+  this->timeout = val;
+  this->mtx.unlock();
+  return true;
 }
 
 bool yikes_database_t::report(dpp::snowflake reporting_user, dpp::snowflake reported_user)
@@ -74,7 +117,7 @@ bool yikes_database_t::report(dpp::snowflake reporting_user, dpp::snowflake repo
   {
     ycount = (it->second += increase_count);
   }
-  bool rval = ycount >= this->yikes_required;
+  bool rval = ycount >= this->threshold;
   this->mtx.unlock();
   TRACE("YDB: add %lu report of %lu, has %d yikeses, modified %d, rval %d\n", (uint64_t)reporting_user, (uint64_t)reported_user, ycount, increase_count, rval);
   return rval;
@@ -88,7 +131,7 @@ void yikes_database_t::cleanup()
   for(auto it = this->yikes_collection.begin(); it != this->yikes_collection.end(); it++)
   {
     auto delta = std::chrono::duration_cast<std::chrono::seconds>(rn - it->second);
-    if(delta > this->yikes_persistence)
+    if(delta > this->persistence)
     {
       keys_to_delete.push_back(it->first);
     }

@@ -2,8 +2,6 @@
 
 static persistent_t *g_persistent;
 
-#define VERSION 0x01000000
-
 persistent_t::persistent_t()
 {
   timestamp_t rn = std::chrono::system_clock::now();
