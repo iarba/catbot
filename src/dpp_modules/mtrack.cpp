@@ -41,12 +41,13 @@ std::string mtrack_t::report_mommy()
   std::stringstream ss;
   if(seconds.count() > 48 * 60 * 60)
   {
-    ss.precision(2);
-    ss << "Days since someone last begged for \"mommy\": ~~" << ((float)(seconds.count() / (24 * 6 * 6))) / 100 << "~~ 0.";
+    ss.precision(1);
+    ss << "Days since someone last begged for \"mommy\": **~~" << ((float)(seconds.count() / (24 * 6 * 6))) / 10 << "~~ 0**.";
   }
   else if(seconds.count() > 3 * 60 * 60)
   {
-    ss << "Hours since someone last begged for \"mommy\": ~~" << (seconds.count() / (60 * 60)) << "~~ 0.";
+    ss.precision(1);
+    ss << "Hours since someone last begged for \"mommy\": **~~" << ((float)(seconds.count() / (60 * 6))) / 10 << "~~ 0**.";
   }
   return ss.str();
 }

@@ -2,6 +2,8 @@
 
 static persistent_t *g_persistent;
 
+#define VERSION 0x01000000
+
 persistent_t::persistent_t()
 {
   timestamp_t rn = std::chrono::system_clock::now();
@@ -27,6 +29,12 @@ bool persistent_t::save(std::string file)
   f.open(file, std::fstream::out);
   if(f.is_open())
   {
+    if(!(f << VERSION << std::endl))
+    {
+      ERROR("failed to write version to memfile\n");
+      f.close();
+      return false;
+    }
     if(!this->cache.save(f))
     {
       ERROR("failed to serialise cache\n");
@@ -78,6 +86,19 @@ bool persistent_t::load(std::string file)
   f.open(file, std::fstream::in);
   if(f.is_open())
   {
+    uint32_t version;
+    if(!(f >> version))
+    {
+      ERROR("failed to read memfile version\n");
+      f.close();
+      return false;
+    }
+    if(version != VERSION)
+    {
+      ERROR("mismatch version, abort\n");
+      f.close();
+      return false;
+    }
     if(!this->cache.load(f))
     {
       ERROR("failed to deserialise cache\n");

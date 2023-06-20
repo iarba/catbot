@@ -1,8 +1,7 @@
 #include "macro.hpp"
-
 #include "dpp_modules/unified.hpp"
 
-#include <set>
+#define MAX_COMMAND_LEN 1024
 
 int dpp_main(int argc, char **argv)
 {
@@ -60,9 +59,10 @@ int dpp_main(int argc, char **argv)
   // this is the big boy
   persistent_t::get()->bot->on_message_create([](const auto & event)
   {
-    if(event.msg.author.is_bot()) // only ignore self messages?
+    if(event.msg.author.is_bot())
     {
-      TRACE("not replying to self\n");
+      // sorry systems...
+      TRACE("ignore self/bot\n");
       return;
     }
     persistent_t::get()->cache.add_message(event.msg);
@@ -110,73 +110,33 @@ int dpp_main(int argc, char **argv)
       }
       return;
     }
-    std::string match = persistent_t::get()->limiter.prefix_get() + ' ';
-    int consumed = 0;
-    if(msg.compare(consumed, match.size(), match) == 0)
+    std::string prefix = persistent_t::get()->limiter.prefix_get();
+    if(msg.compare(0, prefix.size(), prefix) == 0)
     {
-      consumed += match.size();
-      match = "master ";
-      if(msg.compare(consumed, match.size(), match) == 0)
+      int argc = 0;
+      std::string *argv = new std::string[MAX_COMMAND_LEN];
+      std::stringstream css(msg.substr(prefix.size()));
+      std::string token;
+      // this is a command
+      while(css >> token)
       {
-        consumed += match.size();
-        if(!persistent_t::get()->limiter.allow_master(event.msg.author))
+        if(argc >= MAX_COMMAND_LEN)
         {
-          event.reply("I only listen to certified catgirls.");
+          WARN("failed to process too large command\n");
+          event.reply("too much man, too much...");
+          delete[] argv;
           return;
         }
-        std::stringstream css;
-        css.str(msg.substr(consumed));
-        std::string token;
-#define CONFUSED           \
-{                          \
-  event.reply("?");        \
-  return;                  \
-}
-#define GET_TOK            \
-if(!(css >> token))        \
-CONFUSED
-#define GET_TOK_OPTIONAL   \
-token.clear();             \
-css >> token;
-        GET_TOK;
-        if(token == "config")
-        {
-          GET_TOK;
-          if(token == "save")
-          {
-            if(persistent_t::get()->save())
-            {
-              event.reply("ok");
-            }
-            else
-            {
-              event.reply("failed");
-            }
-            return;
-          }
-          CONFUSED;
-        }
-        else if(token == "prefix")
-        {
-          GET_TOK_OPTIONAL;
-          if(token == "set")
-          {
-            GET_TOK;
-            if(persistent_t::get()->limiter.prefix_set(token))
-            {
-              event.reply("ok");
-            }
-            else
-            {
-              event.reply("failed");
-            }
-            return;
-          }
-          event.reply("`prefix: \"" + persistent_t::get()->limiter.prefix_get() + "\"`");
-          return;
-        }
-        CONFUSED;
+        argv[argc++] = token;
       }
+      token = persistent_t::get()->master.process(argc, argv, &event.msg);
+      if(token.size() != 0)
+      {
+        TRACE("replying to command\n");
+        event.reply(persistent_t::get()->master.process(argc, argv, &event.msg));
+      }
+      delete[] argv;
+      return;
     }
   });
 

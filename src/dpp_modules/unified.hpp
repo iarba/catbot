@@ -5,6 +5,7 @@
 #include "yikes.hpp"
 #include "mtrack.hpp"
 #include "limiter.hpp"
+#include "master.hpp"
 
 class persistent_t
 {
@@ -20,6 +21,7 @@ class persistent_t
   yikes_database_t ydb;
   mtrack_t mtrack;
   limiter_t limiter;
+  master_t master;
 
   // dpp stuff
   dpp::cluster *bot;
