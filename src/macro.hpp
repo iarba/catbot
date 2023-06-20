@@ -9,8 +9,8 @@
 #define HTTPS_KEY "/opt/crt/iarba.xyz/key.pem"
 
 #define PROD_DISCORD_BOT_PERSISTENT_MEMFILE "/opt/catbot/memfile"
-#define DEV_DISCORD_BOT_PERSISTENT_MEMFILE "~/memfile"
-#define PROD_DISCORD_BOT_API_KEY_FILE "/opt/crt/iarbot/apikey"
+#define DEV_DISCORD_BOT_PERSISTENT_MEMFILE "./memfile"
+#define PROD_DISCORD_BOT_API_KEY_FILE "/opt/crt/meoliver/apikey"
 #define DEV_DISCORD_BOT_API_KEY_FILE "/opt/crt/iarbot/apikey"
 
 #define DISCORD_BOT_PERSISTENT_MEMFILE (pmode ? (PROD_DISCORD_BOT_PERSISTENT_MEMFILE) : (DEV_DISCORD_BOT_PERSISTENT_MEMFILE))

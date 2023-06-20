@@ -13,7 +13,7 @@ option(DPP_BUILD_TEST "" OFF)
 FetchContent_Declare(DPP GIT_REPOSITORY https://github.com/brainboxdotcc/DPP GIT_TAG master)
 FetchContent_MakeAvailable(DPP)
 
-FILE(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
+FILE(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
 add_executable(catbot ${SOURCES})
 
