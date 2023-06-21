@@ -1,3 +1,4 @@
+#define MODULE "main"
 #include "macro.hpp"
 
 #include <cstring>

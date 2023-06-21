@@ -28,7 +28,7 @@ bool yikes_database_t::load(std::istream &ss)
   status = status && (ss >> val);
   this->yikes_collection.clear();
   this->yikes_count.clear();
-  while(val--)
+  while(val-- > 0)
   {
     uint64_t first_snowflake_uint64, second_snowflake_uint64;
     std::time_t when;

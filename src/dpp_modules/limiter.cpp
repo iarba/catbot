@@ -32,14 +32,14 @@ bool limiter_t::load(std::istream &ss)
   uint64_t snowflake_uint64;
   long count;
   status = status && (ss >> this->prefix >> count);
-  while(count--)
+  while(count-- > 0)
   {
     status = status && (ss >> snowflake_uint64);
     dpp::snowflake snowflake(snowflake_uint64);
     this->authorised_masters.insert(snowflake);
   }
-  status = status && (ss >> this->prefix >> count);
-  while(count--)
+  status = status && (ss >>  count);
+  while(count-- > 0)
   {
     status = status && (ss >> snowflake_uint64);
     dpp::snowflake snowflake(snowflake_uint64);

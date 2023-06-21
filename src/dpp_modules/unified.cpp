@@ -27,31 +27,43 @@ bool persistent_t::save(std::string file)
   f.open(file, std::fstream::out);
   if(f.is_open())
   {
+    TRACE("save version\n");
     if(!(f << VERSION << std::endl))
     {
       ERROR("failed to write version to memfile\n");
       f.close();
       return false;
     }
+    TRACE("save cache\n");
     if(!this->cache.save(f))
     {
       ERROR("failed to serialise cache\n");
       f.close();
       return false;
     }
+    TRACE("save ydb\n");
     if(!this->ydb.save(f))
     {
       ERROR("failed to serialise ydb\n");
       f.close();
       return false;
     }
+    TRACE("save mtrack\n");
     if(!this->mtrack.save(f))
     {
       ERROR("failed to serialise mtrack\n");
       f.close();
       return false;
     }
+    TRACE("save limiter\n");
     if(!this->limiter.save(f))
+    {
+      ERROR("failed to serialise limiter\n");
+      f.close();
+      return false;
+    }
+    TRACE("save levels\n");
+    if(!this->level.save(f))
     {
       ERROR("failed to serialise limiter\n");
       f.close();
@@ -85,6 +97,7 @@ bool persistent_t::load(std::string file)
   if(f.is_open())
   {
     uint32_t version;
+    TRACE("load version\n");
     if(!(f >> version))
     {
       ERROR("failed to read memfile version\n");
@@ -97,25 +110,36 @@ bool persistent_t::load(std::string file)
       f.close();
       return false;
     }
+    TRACE("load cache\n");
     if(!this->cache.load(f))
     {
       ERROR("failed to deserialise cache\n");
       f.close();
       return false;
     }
+    TRACE("load ydb\n");
     if(!this->ydb.load(f))
     {
       ERROR("failed to deserialise ydb\n");
       f.close();
       return false;
     }
+    TRACE("load mtrack\n");
     if(!this->mtrack.load(f))
     {
       ERROR("failed to deserialise mtrack\n");
       f.close();
       return false;
     }
+    TRACE("load limiter\n");
     if(!this->limiter.load(f))
+    {
+      ERROR("failed to deserialise limiter\n");
+      f.close();
+      return false;
+    }
+    TRACE("load levels\n");
+    if(!this->level.load(f))
     {
       ERROR("failed to deserialise limiter\n");
       f.close();

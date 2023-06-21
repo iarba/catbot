@@ -1,6 +1,7 @@
 #ifndef DPP_MODULES_COMMON_HPP
 #define DPP_MODULES_COMMON_HPP
 
+#define MODULE "dpp"
 #include "../macro.hpp"
 
 #include <dpp/dpp.h>

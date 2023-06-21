@@ -5,6 +5,7 @@
 
 int dpp_main(int argc, char **argv)
 {
+  WARN("dpp start\n");
   bool load = true;
   for(int i = 0; i < argc; i++)
   {
@@ -20,6 +21,7 @@ int dpp_main(int argc, char **argv)
   {
     INFO("memfile load\n");
     persistent_t::get()->load();
+    INFO("memfile load finish\n");
   }
   else
   {
@@ -66,10 +68,11 @@ int dpp_main(int argc, char **argv)
       return;
     }
     persistent_t::get()->cache.add_message(event.msg);
+    persistent_t::get()->level.report_message(event.msg);
     std::string msg = event.msg.content;
-    TRACE("%s\n", msg.c_str());
     for (auto & c: msg) c = tolower(c);
     INFO("processing message %lu %lu\n", (uint64_t)event.msg.channel_id, (uint64_t)event.msg.id);
+    TRACE("\n########START########\n%s\n#########END#########\n", msg.c_str());
     if(msg.find("yikes") != std::string::npos)
     {
       persistent_t::get()->cache.get_message_cb(event.msg.message_reference.channel_id, event.msg.message_reference.message_id, [reporting_user = event.msg.author.id](dpp::message target_msg, bool hit)
@@ -99,17 +102,8 @@ int dpp_main(int argc, char **argv)
       if(remark.size() != 0)
       {
         event.reply(remark);
+        return;
       }
-      return;
-    }
-    if(msg.find("meow") != std::string::npos)
-    {
-      std::string remark = persistent_t::get()->mtrack.report_meow();
-      if(remark.size() != 0)
-      {
-        event.send(remark);
-      }
-      return;
     }
     std::string prefix = persistent_t::get()->limiter.prefix_get();
     if(msg.compare(0, prefix.size(), prefix) == 0)
@@ -138,6 +132,15 @@ int dpp_main(int argc, char **argv)
       }
       delete[] argv;
       return;
+    }
+    if(msg.find("meow") != std::string::npos)
+    {
+      std::string remark = persistent_t::get()->mtrack.report_meow();
+      if(remark.size() != 0)
+      {
+        event.send(remark);
+        return;
+      }
     }
   });
 

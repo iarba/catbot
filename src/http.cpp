@@ -1,3 +1,4 @@
+#define MODULE "http"
 #include "macro.hpp"
 
 #define CPPHTTPLIB_OPENSSL_SUPPORT
@@ -14,6 +15,7 @@ typedef enum
 
 typedef struct
 {
+  bool valid;
   std::string name;
   std::string data;
   std::string content_type;
@@ -31,18 +33,25 @@ catgirl_t selection = catgirl_CHOCOLA;
 // create a database of catgirls
 catgirl_payload_t catgirls[catgirl_MAX];
 
-void process_catgirl(catgirl_payload_t *cg, httplib::Result &res)
+catgirl_payload_t banana_man;
+
+bool banana_man_valid()
+{
+  return banana_man.valid;
+}
+
+bool process_catgirl(catgirl_payload_t *cg, httplib::Result &res)
 {
   INFO("processing %s\n", cg->name.c_str());
   if(!res)
   {
     ERROR("failed to get %s http error\n", cg->name.c_str());
-    return;
+    return false;
   }
   if(res->status != 200)
   {
     ERROR("failed to get %s status %d\n", cg->name.c_str(), res->status);
-    return;
+    return false;
   }
   cg->data = res->body;
   try
@@ -54,6 +63,7 @@ void process_catgirl(catgirl_payload_t *cg, httplib::Result &res)
     WARN("failed to automatically detect content type for %s, using default\n", cg->name.c_str());
     cg->content_type = "image/gif";
   }
+  return true;
 }
 
 void load_catgirls()
@@ -65,7 +75,7 @@ void load_catgirls()
     catgirls[current_catgirl].name = "Chocola";
     httplib::Client cli("https://i.pinimg.com");
     auto res = cli.Get("/originals/ba/12/b5/ba12b5f2160d7b4ab755e88d1121303f.gif");
-    process_catgirl(catgirls + current_catgirl, res);
+    catgirls[current_catgirl].valid = process_catgirl(catgirls + current_catgirl, res);
   }
   // next, fetch vanilla
   {
@@ -73,13 +83,18 @@ void load_catgirls()
     catgirls[current_catgirl].name = "Vanilla";
     httplib::Client cli("https://i.imgur.com");
     auto res = cli.Get("/0h3vuUT.gif");
-    process_catgirl(catgirls + current_catgirl, res);
+    catgirls[current_catgirl].valid = process_catgirl(catgirls + current_catgirl, res);
   }
   // nothing left to fetch
 }
 
+void load_misc()
+{
+}
+
 int http_main(int argc, char **argv)
 {
+  WARN("http start\n");
   uint16_t port;
   if(pmode)
   {
@@ -94,7 +109,8 @@ int http_main(int argc, char **argv)
   httplib::SSLServer svr(HTTPS_CERT, HTTPS_KEY);
   INFO("loading catgirls\n");
   load_catgirls();
-  INFO("creating endpoint\n");
+  load_misc();
+  INFO("creating welcome endpoint\n");
   svr.Get("/welcome.gif", [](const httplib::Request &req, httplib::Response &res) {
     // select a catgirl to serve
     catgirl_t current_selection;

@@ -5,6 +5,7 @@
 #include "yikes.hpp"
 #include "mtrack.hpp"
 #include "limiter.hpp"
+#include "level.hpp"
 #include "master.hpp"
 
 class persistent_t
@@ -21,6 +22,7 @@ class persistent_t
   yikes_database_t ydb;
   mtrack_t mtrack;
   limiter_t limiter;
+  level_t level;
   master_t master;
 
   // dpp stuff
