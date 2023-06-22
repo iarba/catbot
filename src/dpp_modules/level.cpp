@@ -4,14 +4,7 @@ float level_t::exp_to_level(float exp)
 {
   float level;
   this->mtx.lock();
-  if(exp < this->quantum)
-  {
-    level = exp / this->quantum;
-  }
-  else
-  {
-    level = std::log(exp * this->mfa / this->quantum) / std::log(this->mfa);
-  }
+  level = (-this->b + std::sqrt(this->b * this->b + 4.0f * this->a * exp)) / (2.0f * this->a);
   this->mtx.unlock();
   return level;
 }
@@ -20,14 +13,7 @@ float level_t::level_to_exp(float level)
 {
   float exp;
   this->mtx.lock();
-  if(level < 1)
-  {
-    exp = level * this->quantum;
-  }
-  else
-  {
-    exp = std::pow(this->mfa, level) * this->quantum / this->mfa;
-  }
+  exp = level * (level * this->a + b);
   this->mtx.unlock();
   return exp;
 }
@@ -36,7 +22,7 @@ bool level_t::save(std::ostream &ss)
 {
   bool status = true;
   this->mtx.lock();
-  status = status && (ss << ' ' << this->base << ' ' << this->co << ' ' << this->exp << ' ' << this->quantum << ' ' << this->mfa << ' ' << this->user_db.size() << std::endl);
+  status = status && (ss << ' ' << this->base << ' ' << this->co << ' ' << this->exp << ' ' << this->a << ' ' << this->b << ' ' << this->user_db.size() << std::endl);
   for(auto it : user_db)
   {
     status = status && (ss << (uint64_t) it.first << ' ' << std::chrono::system_clock::to_time_t(it.second->last_message) << ' ' << it.second->exp << std::endl);
@@ -53,7 +39,7 @@ bool level_t::load(std::istream &ss)
   std::time_t time;
   float exp;
   this->mtx.lock();
-  status = status && (ss >> this->base >> this->co >> this->exp >> this->quantum >> this->mfa >> count);
+  status = status && (ss >> this->base >> this->co >> this->exp >> this->a >> this->b >> count);
   for(auto it : this->user_db)
   {
     delete it.second;
@@ -119,34 +105,34 @@ bool level_t::exp_set(float value)
   return true;
 }
 
-float level_t::quantum_get()
+float level_t::a_get()
 {
   this->mtx.lock();
-  float value = this->quantum;
+  float value = this->a;
   this->mtx.unlock();
   return value;
 }
 
-bool level_t::quantum_set(float value)
+bool level_t::a_set(float value)
 {
   this->mtx.lock();
-  this->quantum = value;
+  this->a = value;
   this->mtx.unlock();
   return true;
 }
 
-float level_t::mfa_get()
+float level_t::b_get()
 {
   this->mtx.lock();
-  float value = this->mfa;
+  float value = this->b;
   this->mtx.unlock();
   return value;
 }
 
-bool level_t::mfa_set(float value)
+bool level_t::b_set(float value)
 {
   this->mtx.lock();
-  this->mfa = value;
+  this->b = value;
   this->mtx.unlock();
   return true;
 }
@@ -195,4 +181,14 @@ leveled_user_t level_t::checkout(dpp::snowflake id)
   lu = *actual_lu;
   this->mtx.unlock();
   return lu;
+}
+
+bool level_t::set(dpp::snowflake id, float exp)
+{
+  timestamp_t rn = std::chrono::system_clock::now();
+  this->mtx.lock();
+  leveled_user_t *lu = this->get_user(id, rn);
+  lu->exp = exp;
+  this->mtx.unlock();
+  return true;
 }

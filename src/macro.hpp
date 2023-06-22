@@ -3,7 +3,7 @@
 
 #include <cstdio>
 
-#define VERSION 0x01000002
+#define VERSION 0x01000003
 
 // maybe replace these values with your files
 

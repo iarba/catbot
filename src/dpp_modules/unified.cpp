@@ -65,7 +65,14 @@ bool persistent_t::save(std::string file)
     TRACE("save levels\n");
     if(!this->level.save(f))
     {
-      ERROR("failed to serialise limiter\n");
+      ERROR("failed to serialise level\n");
+      f.close();
+      return false;
+    }
+    TRACE("save dispatcher\n");
+    if(!this->dispatcher.save(f))
+    {
+      ERROR("failed to serialise dispatch\n");
       f.close();
       return false;
     }
@@ -141,7 +148,14 @@ bool persistent_t::load(std::string file)
     TRACE("load levels\n");
     if(!this->level.load(f))
     {
-      ERROR("failed to deserialise limiter\n");
+      ERROR("failed to deserialise level\n");
+      f.close();
+      return false;
+    }
+    TRACE("load dispatcher\n");
+    if(!this->dispatcher.load(f))
+    {
+      ERROR("failed to deserialise dispatcher\n");
       f.close();
       return false;
     }

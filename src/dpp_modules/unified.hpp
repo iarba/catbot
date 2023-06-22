@@ -7,6 +7,7 @@
 #include "limiter.hpp"
 #include "level.hpp"
 #include "master.hpp"
+#include "dispatcher.hpp"
 
 class persistent_t
 {
@@ -23,6 +24,7 @@ class persistent_t
   mtrack_t mtrack;
   limiter_t limiter;
   level_t level;
+  dispatcher_t dispatcher;
   master_t master;
 
   // dpp stuff

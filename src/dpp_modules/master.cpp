@@ -160,6 +160,80 @@ std::string master_t::process_master_ydb(int argc, std::string *argv, const dpp:
   return FAIL;
 }
 
+std::string master_t::process_master_rule_give(int argc, std::string *argv, const dpp::message *context_msg, dpp::snowflake role)
+{
+  role_rule_t rr;
+  rr.level_requirement = 0;
+  rr.guild = context_msg->member.guild_id;
+  for(int i = 0; i < argc; i++)
+  {
+    if(argv[i] == "level")
+    {
+      if(++i >= argc)
+      {
+        return FAIL;
+      }
+      std::stringstream tss(argv[i]);
+      if(!(tss >> rr.level_requirement))
+      {
+        return FAIL;
+      }
+    }
+  }
+  for(auto it : context_msg->mention_roles)
+  {
+    if(it != role)
+    {
+      rr.blacklist_roles.insert(it);
+    }
+  }
+  TRACE("adding rule for role %lu\n", (uint64_t) role);
+  if(persistent_t::get()->dispatcher.give(role, rr))
+  {
+    return OK;
+  }
+  return FAIL;
+}
+
+std::string master_t::process_master_rule_forget(int argc, std::string *argv, const dpp::message *context_msg, dpp::snowflake role)
+{
+  if(persistent_t::get()->dispatcher.forget(role))
+  {
+    return OK;
+  }
+  return FAIL;
+}
+
+std::string master_t::process_master_rule(int argc, std::string *argv, const dpp::message *context_msg)
+{
+  if(argc <= 0)
+  {
+    std::stringstream ss;
+    ss << "List of rules;" << std::endl;
+    persistent_t::get()->dispatcher.show_rules(ss);
+    return ss.str();
+  }
+  if(argc <= 1)
+  {
+    return UNUSED_ERR_MSG;
+  }
+  uint64_t id;
+  if(sscanf(argv[1].c_str(), "<@&%lu>", &id) != 1)
+  {
+    return FAIL;
+  }
+  dpp::snowflake role(id);
+  if(argv[0] == "give")
+  {
+    return this->process_master_rule_give(argc - 2, argv + 2, context_msg, role);
+  }
+  if(argv[0] == "forget")
+  {
+    return this->process_master_rule_forget(argc - 2, argv + 2, context_msg, role);
+  }
+  return UNUSED_ERR_MSG;
+}
+
 std::string master_t::process_master(int argc, std::string *argv, const dpp::message *context_msg)
 {
   if(argc <= 0)
@@ -186,6 +260,10 @@ std::string master_t::process_master(int argc, std::string *argv, const dpp::mes
   {
     return this->process_master_level(argc - 1, argv + 1, context_msg);
   }
+  if(argv[0] == "rule")
+  {
+    return this->process_master_rule(argc - 1, argv + 1, context_msg);
+  }
   return UNUSED_ERR_MSG;
 }
 
@@ -203,6 +281,7 @@ std::string master_t::process_help(int argc, std::string *argv, const dpp::messa
 
   // level
   ss << '`' << prefix << " level [@user?]` - Show the level of the user. If user not specified, show your own level" << std::endl; // TODO
+  ss << '`' << prefix << " level requirements` - Show the level xp requirements" << std::endl; // TODO
 
   // master, only if allowed
   if(persistent_t::get()->limiter.allow_master(context_msg->member, context_msg->author))
@@ -218,9 +297,16 @@ std::string master_t::process_help(int argc, std::string *argv, const dpp::messa
     ss << '`' << prefix << " master level base [#channel?]` - Get/set the base in the level formula." << std::endl;
     ss << '`' << prefix << " master level co [#channel?]` - Get/set the cutoff in the level formula." << std::endl;
     ss << '`' << prefix << " master level exp [#channel?]` - Get/set the exponent in the level formula." << std::endl;
-    ss << '`' << prefix << " master level quantum [#channel?]` - Get/set the quantum in the level formula." << std::endl;
-    ss << '`' << prefix << " master level mfa [#channel?]` - Get/set the multiplicative factor(with +1) in the level formula." << std::endl;
+    ss << '`' << prefix << " master level a [#channel?]` - Get/set the a in the level formula." << std::endl;
+    ss << '`' << prefix << " master level b [#channel?]` - Get/set the b in the level formula." << std::endl;
+    ss << '`' << prefix << " master level give [number] [@user]` - Give xp to a user." << std::endl;
+    ss << '`' << prefix << " master level set [number] [@user]` - Set the level of a user." << std::endl;
     // ss << '`' << prefix << " master level log_channel [#channel?]` - Get/set the level log channel." << std::endl; // TODO
+
+    // rule
+    ss << '`' << prefix << " master rule ` - Show all rules" << std::endl;
+    ss << '`' << prefix << " master rule give [@role] level [level] [@roles?]` - Create a rule" << std::endl;
+    ss << '`' << prefix << " master rule forget [@role]` - Delte a rule" << std::endl;
 
     // internal
     // ss << '`' << prefix << " master internal cache validity [seconds?]` - Get/set the cache validity duration." << std::endl; // TODO
@@ -236,24 +322,36 @@ std::string master_t::process_help(int argc, std::string *argv, const dpp::messa
   return ss.str();
 }
 
+std::string master_t::process_level_requirements(int argc, std::string *argv, const dpp::message *context_msg)
+{
+  std::stringstream ss;
+  for(float level = 1; level < 30.5; level += 1)
+  {
+    float exp = persistent_t::get()->level.level_to_exp(level);
+    ss << "For level " << (uint32_t)(level) << ": " << (uint32_t)(exp * 100.0f) << " exp is required." << std::endl;
+  }
+  return ss.str();
+}
+
 std::string master_t::process_level(int argc, std::string *argv, const dpp::message *context_msg)
 {
-  dpp::snowflake id;
-  if(argc == 0)
+  if(argc >= 1 && argv[0] == "requirements")
   {
-    // display self
-    id = context_msg->author.id;
+    return master_t::process_level_requirements(argc - 1, argv + 1, context_msg);
   }
-  else
+  dpp::snowflake id = context_msg->author.id;
+  // display first mention, of one exists
+  for(auto it : context_msg->mentions)
   {
-    // display first mention
-    for(auto it : context_msg->mentions)
-    {
-      id = it.first.id; break;
-    }
+    id = it.first.id; break;
   }
   leveled_user_t lu = persistent_t::get()->level.checkout(id);
-  return "Level of <@" + std::to_string((uint64_t) id) + ">: " + std::to_string(persistent_t::get()->level.exp_to_level(lu.exp)) + "(exp:" + std::to_string(lu.exp) +")";
+  float level = persistent_t::get()->level.exp_to_level(lu.exp);
+  if(id == context_msg->author.id)
+  {
+    persistent_t::get()->dispatcher.check_level(context_msg->member, level);
+  }
+  return "Level of <@" + std::to_string((uint64_t) id) + ">: " + std::to_string((uint32_t)(level)) + "(exp:" + std::to_string((uint32_t)(lu.exp * 100.0f)) +")";
 }
 
 std::string master_t::process_master_level_co(int argc, std::string *argv, const dpp::message *context_msg)
@@ -310,17 +408,17 @@ std::string master_t::process_master_level_exp(int argc, std::string *argv, cons
   return FAIL;
 }
 
-std::string master_t::process_master_level_quantum(int argc, std::string *argv, const dpp::message *context_msg)
+std::string master_t::process_master_level_a(int argc, std::string *argv, const dpp::message *context_msg)
 {
   if(argc <= 0)
   {
-    return "`level.quantum: " + std::to_string(persistent_t::get()->level.quantum_get()) + "`";
+    return "`level.a: " + std::to_string(persistent_t::get()->level.a_get()) + "`";
   }
   std::stringstream ss(argv[0]);
   float value;
   if(ss >> value)
   {
-    if(persistent_t::get()->level.quantum_set(value))
+    if(persistent_t::get()->level.a_set(value))
     {
       return OK;
     }
@@ -328,20 +426,82 @@ std::string master_t::process_master_level_quantum(int argc, std::string *argv, 
   return FAIL;
 }
 
-std::string master_t::process_master_level_mfa(int argc, std::string *argv, const dpp::message *context_msg)
+std::string master_t::process_master_level_b(int argc, std::string *argv, const dpp::message *context_msg)
 {
   if(argc <= 0)
   {
-    return "`level.mfa: " + std::to_string(persistent_t::get()->level.mfa_get()) + "`";
+    return "`level.b: " + std::to_string(persistent_t::get()->level.b_get()) + "`";
   }
   std::stringstream ss(argv[0]);
   float value;
   if(ss >> value)
   {
-    if(persistent_t::get()->level.mfa_set(value))
+    if(persistent_t::get()->level.b_set(value))
     {
       return OK;
     }
+  }
+  return FAIL;
+}
+
+std::string master_t::process_master_level_give(int argc, std::string *argv, const dpp::message *context_msg)
+{
+  dpp::snowflake id;
+  bool found  = false;
+  if(argc <= 0)
+  {
+    return UNUSED_ERR_MSG;
+  }
+  float xp_to_give;
+  std::stringstream iss(argv[0]);
+  if(!(iss >> xp_to_give))
+  {
+    return FAIL;
+  }
+  xp_to_give /= 100.0f;
+  // affect first mention, if one exists
+  for(auto it : context_msg->mentions)
+  {
+    id = it.first.id; found = true; break;
+  }
+  if(!found)
+  {
+    return FAIL;
+  }
+  leveled_user_t lu = persistent_t::get()->level.checkout(id);
+  if(persistent_t::get()->level.set(id, lu.exp + xp_to_give))
+  {
+    return OK;
+  }
+  return FAIL;
+}
+
+std::string master_t::process_master_level_set(int argc, std::string *argv, const dpp::message *context_msg)
+{
+  dpp::snowflake id;
+  bool found  = false;
+  if(argc <= 0)
+  {
+    return UNUSED_ERR_MSG;
+  }
+  float lvl_to_set;
+  std::stringstream iss(argv[0]);
+  if(!(iss >> lvl_to_set))
+  {
+    return FAIL;
+  }
+  // affect first mention, if one exists
+  for(auto it : context_msg->mentions)
+  {
+    id = it.first.id; found = true; break;
+  }
+  if(!found)
+  {
+    return FAIL;
+  }
+  if(persistent_t::get()->level.set(id, persistent_t::get()->level.level_to_exp(lvl_to_set)))
+  {
+    return OK;
   }
   return FAIL;
 }
@@ -351,6 +511,14 @@ std::string master_t::process_master_level(int argc, std::string *argv, const dp
   if(argc <= 0)
   {
     return UNUSED_ERR_MSG;
+  }
+  if(argv[0] == "give")
+  {
+    return this->process_master_level_give(argc - 1, argv + 1, context_msg);
+  }
+  if(argv[0] == "set")
+  {
+    return this->process_master_level_set(argc - 1, argv + 1, context_msg);
   }
   if(argv[0] == "co")
   {
@@ -364,13 +532,13 @@ std::string master_t::process_master_level(int argc, std::string *argv, const dp
   {
     return this->process_master_level_exp(argc - 1, argv + 1, context_msg);
   }
-  if(argv[0] == "quantum")
+  if(argv[0] == "a")
   {
-    return this->process_master_level_quantum(argc - 1, argv + 1, context_msg);
+    return this->process_master_level_a(argc - 1, argv + 1, context_msg);
   }
-  if(argv[0] == "mfa")
+  if(argv[0] == "b")
   {
-    return this->process_master_level_mfa(argc - 1, argv + 1, context_msg);
+    return this->process_master_level_b(argc - 1, argv + 1, context_msg);
   }
   return UNUSED_ERR_MSG;
 }
